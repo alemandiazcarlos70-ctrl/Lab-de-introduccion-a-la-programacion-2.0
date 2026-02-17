@@ -1,7 +1,7 @@
 class ConversorNumerico:
-    def __init__(self, numero_decimal):
+    def __init__(self, numero):
         # Validamos que sea un entero
-        if not isinstance(numero_decimal, int):
+        if not isinstance(numero, int):
             raise ValueError("El valor debe ser un número entero.")
         self.numero = numero_decimal
 
