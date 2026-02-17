@@ -1,0 +1,17 @@
+## Explicación de la calculadora
+
+En este ejercicio hice una calculadora basica usando C++. La idea principal fue hacer un programa sencillo para practicar lo mas basico de programacion, como usar variables, pedir datos al usuario y mostrar resultados en pantalla.
+
+Primero agregue la libreria iostream porque es la que se usa para poder imprimir cosas en la consola y tambien para leer lo que el usuario escribe con el teclado usando cout y cin. Todo el codigo corre dentro de la funcion main, que basicamente es donde empieza cualquier programa en C++.
+
+Despues declare varias variables, una para guardar la opcion que el usuario elige en el menu, otras dos para los numeros que se van a usar y otra mas para guardar el resultado. Use float porque asi puedo trabajar con numeros con decimales y no solo enteros.
+
+Luego mostre un menu en pantalla para que el usuario pueda escoger que operacion quiere hacer, como sumar, restar, multiplicar o dividir. Cuando el usuario ya elige una opcion, el programa le pide que ingrese dos numeros.
+
+Para hacer las operaciones use un switch, porque es mas facil manejar varias opciones sin usar muchos if. Cada caso del switch hace una operacion diferente y al final muestra el resultado en la pantalla.
+
+En la division puse una validacion para que no se pueda dividir entre cero, porque eso causaria un error. Si el usuario intenta hacerlo, el programa le muestra un mensaje diciendo que no se puede.
+
+Si el usuario escribe una opcion que no existe en el menu, el programa le avisa que la opcion no es valida. Al final el programa termina normal.
+
+Con este ejercicio aprendi y practique cosas basicas como usar variables, condiciones, switch, operaciones matematicas y un poco de logica, aunque el programa es sencillo sirve para entender mejor como funciona C++.
