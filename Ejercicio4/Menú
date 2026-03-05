@@ -1,0 +1,147 @@
+usuario_correcto = "Admin1"
+contraseña_correcta = "Admin2026"
+
+intentos_usuario = 3
+intentos_contraseña = 3
+
+# -------- VALIDACIÓN DEL USUARIO --------
+while intentos_usuario > 0:
+    usuario = input("Ingrese el nombre de usuario: ")
+
+    tiene_letra = False
+    tiene_numero = False
+
+    for c in usuario:
+        if c.isalpha():
+            tiene_letra = True
+        if c.isdigit():
+            tiene_numero = True
+
+    if not (tiene_letra and tiene_numero):
+        intentos_usuario -= 1
+        print("El usuario debe contener al menos una letra y un número.")
+        print(f"Intentos restantes de usuario: {intentos_usuario}")
+    elif usuario != usuario_correcto:
+        intentos_usuario -= 1
+        print("Usuario incorrecto.")
+        print(f"Intentos restantes de usuario: {intentos_usuario}")
+    else:
+        print("Usuario correcto.")
+        break
+
+if intentos_usuario == 0:
+    print("Acceso denegado. Se agotaron los intentos de usuario.")
+else:
+    # -------- VALIDACIÓN DE CONTRASEÑA --------
+    while intentos_contraseña > 0:
+        contraseña_ingresada = input("Ingrese la contraseña: ")
+
+        if contraseña_ingresada == contraseña_correcta:
+            print("¡Acceso concedido!")
+            break
+        else:
+            intentos_contraseña -= 1
+            print(f"Contraseña incorrecta. Intentos restantes: {intentos_contraseña}")
+
+            if intentos_contraseña == 0:
+                print("Acceso denegado. Se agotaron los intentos de contraseña.")
+    while True:
+        print("\nMenú de opciones:")
+        print("1. Clasificar número")
+        print("2. Categorizar edad y permisos")
+        print("3. Calcular Tarifa Final")
+        print("4. Cerrar sesión")
+        print("5. salir")
+
+        Seleccion = input("Seleccione una opción (1-5): ")
+        if Seleccion == "1":
+            print("Clasificar los números")
+            while True:
+                try:
+                    num = int(input("Ingrese un número: "))
+                    num(x)==int
+                    if num==0:
+                        print("El número es cero.")
+                    elif num>0:
+                        print("El número es positivo.")
+                    elif num<0:
+                        print("El número es negativo.")
+                    if num %2==0:
+                        print("El número es par.")
+                    else:
+                        print("El número es impar.")
+                    break
+                except ValueError:
+                    print("Entrada no válida. Por favor, ingrese un número entero.")
+        elif Seleccion == "2":
+            print("Categorizar edad y permisos")
+            while True:
+                try:
+                    edad = int(input("Ingrese su edad: "))
+                    if edad < 0:
+                        print("Tu edad no esta bien ingresada.")
+                    elif edad >=13:
+                            print("Te puedes registrar, mas no conducir.")
+                    elif edad < 18:
+                        print("Eres menor, no puedes conducir.")
+                    elif 18 <= edad < 21:
+                        print("No tienes permiso para conducir.")
+                        print("¿Tienes permiso para conducir? (S/N)")
+                        permiso = input().strip().upper()
+                        if permiso == "S":
+                            print("Puedes conducir con permiso.")
+                        if permiso == "N":
+                            print("No puedes conducir sin permiso.")
+                            break
+                            license = input("¿Tienes licencia de conducir? (S/N): ").strip().upper()
+                            if license == "S":
+                                print("Puedes conducir con licencia.")
+                    else:
+                        print("Sí cuentas con permiso para conducir.")
+                        if license == "N":
+                                print("No puedes conducir sin licencia.")   
+                    break
+                except ValueError:
+                    print("Ni que el año se divida en fracciones, ingres una edad válida.")
+                input("Reglas del Negocio")
+                
+        elif Seleccion == "3":
+            print("Calcular Tarifa Final")
+            while True:
+                try:
+                    edad = int(input("Ingrese su edad: "))
+                    if edad < 120:
+                        if edad >120:
+                            print("Ni que fueras inmortal, ingresela bien.")
+                            break
+                    dia_de_la_semana = int(input("Ingrese el día de la semana (1-7): "))
+                    if dia_de_la_semana < 1 or dia_de_la_semana > 7:
+                            print("Ingrese un número válido del 1 al 7.")
+                            continue
+                    if dia_de_la_semana in [1,2,3,4,5,6,7]:
+                        if dia_de_la_semana in [6,7]:
+                            recarga_precio_base = +20
+                    es_estudiante= input("¿Eres estudiante? (S/N): ").strip().upper()
+                    if es_estudiante == "S":
+                        metodo_de_pago = input("¿Cuál es tu método de pago? (Efectivo/Tarjeta): ").strip().lower()
+                        if metodo_de_pago == "efectivo":
+                        if metodo_de_pago == "tarjeta":
+                        if es_estudiante == "N":
+                            break
+                    Es_Miembro = input("¿Eres miembro? (S/N): ").strip().upper()
+                    if Es_Miembro == "S":
+                        metodo_de_pago = input("¿Cuál es tu método de pago? (Efectivo/Tarjeta): ").strip().lower()
+                        if metodo_de_pago == "efectivo":
+                        if metodo_de_pago = "tarjeta":
+                    if Es_Miembro == "N":
+                        break
+                    descuento_por eda
+                except ValueError:
+                    print("Entrada no válida. Por favor, ingrese números enteros.")
+        elif Seleccion == "5":
+            print("Salir")
+            exit()
+        else:
+            print("Opción no válida. Por favor, seleccione una opción del 1 al 5.")
+            intentos += 1
+            continue
