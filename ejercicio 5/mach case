@@ -1,0 +1,147 @@
+usuario_correcto = "Admin1"
+contraseña_correcta = "Admin2026"
+
+intentos_usuario = 3
+intentos_contraseña = 3
+
+# -------- VALIDACIÓN DEL USUARIO --------
+while intentos_usuario > 0:
+    usuario = input("Ingrese el nombre de usuario: ")
+
+    tiene_letra = any(c.isalpha() for c in usuario)
+    tiene_numero = any(c.isdigit() for c in usuario)
+
+    if not (tiene_letra and tiene_numero):
+        intentos_usuario -= 1
+        print("El usuario debe contener al menos una letra y un número.")
+        print(f"Intentos restantes: {intentos_usuario}")
+    elif usuario != usuario_correcto:
+        intentos_usuario -= 1
+        print("Usuario incorrecto.")
+        print(f"Intentos restantes: {intentos_usuario}")
+    else:
+        print("Usuario correcto.")
+        break
+
+if intentos_usuario == 0:
+    print("Tienes Alzhaimer o que wey.")
+    exit()
+
+# -------- VALIDACIÓN DE CONTRASEÑA --------
+while intentos_contraseña > 0:
+    contraseña_ingresada = input("Ingrese la contraseña: ")
+
+    if contraseña_ingresada == contraseña_correcta:
+        print("¡Acceso concedido!")
+        break
+    else:
+        intentos_contraseña -= 1
+        print(f"Contraseña incorrecta. Intentos restantes: {intentos_contraseña}")
+
+if intentos_contraseña == 0:
+    print("Acceso denegado.")
+    exit()
+
+# -------- MENÚ PRINCIPAL --------
+while True:
+    print("\nMenú de opciones:")
+    print("1. Clasificar número")
+    print("2. Categorizar edad y permisos")
+    print("3. Calcular Tarifa Final")
+    print("4. Cerrar sesión")
+    print("5. Salir")
+
+    seleccion = input("Seleccione una opción (1-5): ")
+
+    match seleccion:
+
+        # ---------------- OPCIÓN 1 ----------------
+        case "1":
+            print("Clasificar número")
+            try:
+                num = int(input("Ingrese un número: "))
+
+                if num == 0:
+                    print("El número es cero.")
+                elif num > 0:
+                    print("El número es positivo.")
+                else:
+                    print("El número es negativo.")
+
+                if num % 2 == 0:
+                    print("El número es par.")
+                else:
+                    print("El número es impar.")
+
+            except ValueError:
+                print("Entrada no válida.")
+
+        # ---------------- OPCIÓN 2 ----------------
+        case "2":
+            print("Categorizar edad y permisos")
+            try:
+                edad = int(input("Ingrese su edad: "))
+
+                if edad < 0:
+                    print("Edad inválida.")
+                elif edad < 13:
+                    print("Eres menor de edad.")
+                elif edad < 18:
+                    print("Puedes registrarte, pero no conducir.")
+                elif 18 <= edad < 21:
+                    permiso = input("¿Tienes permiso? (S/N): ").strip().upper()
+                    if permiso == "S":
+                        print("Puedes conducir con permiso.")
+                    else:
+                        print("No puedes conducir sin permiso.")
+                else:
+                    print("Puedes conducir con licencia.")
+
+            except ValueError:
+                print("Ingrese una edad válida.")
+
+        # ---------------- OPCIÓN 3 ----------------
+        case "3":
+            print("Calcular Tarifa Final")
+
+            try:
+                precio_base = 100
+                edad = int(input("Ingrese su edad: "))
+                dia = int(input("Ingrese día de la semana (1-7): "))
+
+                if dia < 1 or dia > 7:
+                    print("Día inválido.")
+                    continue
+
+                total = precio_base
+
+                # Recargo fin de semana
+                if dia in [6, 7]:
+                    total += 20
+
+                es_estudiante = input("¿Eres estudiante? (S/N): ").upper()
+                if es_estudiante == "S":
+                    total *= 0.8  # 20% descuento
+
+                es_miembro = input("¿Eres miembro? (S/N): ").upper()
+                if es_miembro == "S":
+                    total *= 0.9  # 10% descuento adicional
+
+                print(f"Tarifa final: ${total:.2f}")
+
+            except ValueError:
+                print("Datos inválidos.")
+
+        # ---------------- OPCIÓN 4 ----------------
+        case "4":
+            print("Sesión cerrada.")
+            break
+
+        # ---------------- OPCIÓN 5 ----------------
+        case "5":
+            print("Programa finalizado.")
+            exit()
+
+        # ---------------- DEFAULT ----------------
+        case _:
+            print("Opción no válida.")

@@ -1,0 +1,127 @@
+#1
+palabra=input("Ingrese una palabra: ")
+for i in range(10,-1,-1):
+    print(f"{palabra} {i}")
+
+#2
+print("ingrese su edad")
+edad = int(input())
+print(f"{edad} {i}")
+for i in range (edad,-1,-1):
+    print(edad-i)
+
+#3
+try:
+    num = int(input("Introduce un número entero positivo: "))
+
+    if num > 0:
+        print(f"Números impares desde 1 hasta {num}:")
+        
+        for i in range(1, num + 1, 2):
+            print(f"{i}, ", end="")
+
+except ValueError:
+    print("Entrada inválida. Asegúrate de introducir un número entero.")
+
+#4
+try:
+    num = int(input("Introduce un número entero positivo: "))
+
+    if num > 0:
+        print(f"Números impares desde 1 hasta {num}:")
+        
+        for i in range(num, 0, -1):
+            print(f"{i}, ", end="")
+except ValueError:
+    print("Entrada inválida. Asegúrate de introducir un número entero.")
+
+#5
+try:    
+    print("cantidad")
+    inversion= float(input())
+    print("tasa de interes anual (%): ")
+    anual = float(input())
+    print("Años:  ")
+    años = int(input())
+except ValueError:
+    print("por favor, introduce numeros")
+interes_compuestos = inversion * (1 + anual / 100) ** años
+print(f"el monto total despues de {años} años es: {interes_compuestos: .2f}")
+
+#6
+n = int(input("Ingresa un número: "))
+
+for i in range(1, n + 1):
+    print("*" * i)
+
+#7
+for i in range(1, 11):
+    print(f"Tabla del {i}:")
+    for j in range(1, 11):
+        print(f"{i} x {j} = {i*j}")
+    print()
+
+#8
+n = int(input("Ingresa un número: "))
+
+for i in range(1, n + 1):
+    num = 2 * i - 1
+    for j in range(i):
+        print(num - 2*j, end=" ")
+    print()
+
+#9
+contraseña_correcta = "python123"
+
+for i in range(100):  # número alto para simular repetición
+    contraseña = input("Ingresa la contraseña: ")
+    if contraseña == contraseña_correcta:
+        print("Contraseña correcta")
+        break
+    else:
+        print("Incorrecta, intenta de nuevo")
+
+#10
+num = int(input("Ingresa un número: "))
+es_primo = True
+
+if num < 2:
+    es_primo = False
+else:
+    for i in range(2, num):
+        if num % i == 0:
+            es_primo = False
+            break
+
+if es_primo:
+    print("Es primo")
+else:
+    print("No es primo")
+
+#11
+palabra = input("Ingresa una palabra: ")
+
+for i in range(len(palabra)-1, -1, -1):
+    print(palabra[i])
+
+#12
+frase = input("Ingresa una frase: ")
+letra = input("Ingresa una letra: ")
+
+contador = 0
+
+for c in frase:
+    if c == letra:
+        contador += 1
+
+print("La letra aparece", contador, "veces")
+
+#13
+for i in range(1000):  # número alto para simular ciclo infinito
+    texto = input("Escribe algo (o 'salir' para terminar): ")
+    
+    if texto.lower() == "salir":
+        break
+    
+    print(texto)
+    
