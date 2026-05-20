@@ -1,1 +1,395 @@
+import tkinter as tk
+from tkinter import messagebox
+
+# Uxuzrios disponibles (por ahora ;( )
+usuarios = {
+    "carlos": "123",
+    "chago": "123"
+}
+
+saldo = 25000
+
+def limpiar_ventana():
+    for widget in ventana.winfo_children():
+        widget.destroy()
+
+
+#Interfax de BanCOCO
+def pantalla_banco(usuario_actual):
+    limpiar_ventana()
+
+    ventana.geometry("900x550")
+    ventana.configure(bg="#e8eef5")
+
+    header = tk.Frame(ventana, bg="#003366", height=80)
+    header.pack(fill="x")
+
+    tk.Label(
+        header,
+        text="🏦 BanCOCO",
+        font=("Arial", 24, "bold"),
+        bg="#003366",
+        fg="white"
+    ).pack(pady=20)
+
+    # Menú lateral
+    menu_frame = tk.Frame(ventana, bg="#1f4e79", width=220)
+    menu_frame.pack(side="left", fill="y")
+
+    contenido = tk.Frame(ventana, bg="white")
+    contenido.pack(side="right", expand=True, fill="both")
+
+    def limpiar_contenido():
+        for widget in contenido.winfo_children():
+            widget.destroy()
+
+    def inicio():
+        limpiar_contenido()
+
+        tk.Label(
+            contenido,
+            text="Bien benido a BanCOCO",
+            font=("Arial", 24, "bold"),
+            bg="white",
+            fg="#003366"
+        ).pack(pady=20)
+
+        tk.Label(
+            contenido,
+            text="El banco mas seguro de Mexico :)",
+            font=("Arial", 16),
+            bg="white",
+            fg="green"
+        ).pack(pady=10)
+
+        tk.Label(
+            contenido,
+            text=f"Usuario conectado: {usuario_actual}",
+            font=("Arial", 14),
+            bg="white"
+        ).pack(pady=10)
+
+        tk.Label(
+            contenido,
+            text="Seleccione una opción del menú.",
+            font=("Arial", 14),
+            bg="white"
+        ).pack()
+
+    def consultar_saldo():
+        limpiar_contenido()
+
+        tk.Label(
+            contenido,
+            text="CONSULTA DE SALDO",
+            font=("Arial", 22, "bold"),
+            bg="white"
+        ).pack(pady=30)
+
+        tk.Label(
+            contenido,
+            text=f"Saldo disponible: ${saldo:,.2f}",
+            font=("Arial", 18),
+            fg="green",
+            bg="white"
+        ).pack()
+
+    def deposito():
+        global saldo
+        limpiar_contenido()
+
+        tk.Label(
+            contenido,
+            text="DEPÓSITO",
+            font=("Arial", 22, "bold"),
+            bg="white"
+        ).pack(pady=20)
+
+        tk.Label(
+            contenido,
+            text="Monto a depositar:",
+            bg="white"
+        ).pack()
+
+        monto_entry = tk.Entry(
+            contenido,
+            font=("Arial", 14)
+        )
+        monto_entry.pack(pady=10)
+
+        def confirmar():
+            global saldo
+
+            try:
+                monto = float(monto_entry.get())
+
+                if monto > 0:
+                    saldo += monto
+
+                    messagebox.showinfo(
+                        "Éxito",
+                        f"Depósito realizado.\nNuevo saldo: ${saldo:,.2f}"
+                    )
+                else:
+                    messagebox.showerror(
+                        "Error",
+                        "Ingrese un monto válido."
+                    )
+
+            except:
+                messagebox.showerror(
+                    "Error",
+                    "Ingrese solo números."
+                )
+
+        tk.Button(
+            contenido,
+            text="Depositar",
+            bg="green",
+            fg="white",
+            font=("Arial", 12),
+            command=confirmar
+        ).pack(pady=20)
+
+    def retiro():
+        global saldo
+        limpiar_contenido()
+
+        tk.Label(
+            contenido,
+            text="RETIRO",
+            font=("Arial", 22, "bold"),
+            bg="white"
+        ).pack(pady=20)
+
+        tk.Label(
+            contenido,
+            text="Monto a retirar:",
+            bg="white"
+        ).pack()
+
+        monto_entry = tk.Entry(
+            contenido,
+            font=("Arial", 14)
+        )
+        monto_entry.pack(pady=10)
+
+        def confirmar():
+            global saldo
+
+            try:
+                monto = float(monto_entry.get())
+
+                if monto <= saldo:
+                    saldo -= monto
+
+                    messagebox.showinfo(
+                        "Éxito",
+                        f"Retiro realizado.\nSaldo actual: ${saldo:,.2f}"
+                    )
+                else:
+                    messagebox.showerror(
+                        "Error",
+                        "Saldo insuficiente."
+                    )
+
+            except:
+                messagebox.showerror(
+                    "Error",
+                    "Ingrese números válidos."
+                )
+
+        tk.Button(
+            contenido,
+            text="Retirar",
+            bg="red",
+            fg="white",
+            font=("Arial", 12),
+            command=confirmar
+        ).pack(pady=20)
+
+    def transferencia():
+        global saldo
+        limpiar_contenido()
+
+        tk.Label(
+            contenido,
+            text="TRANSFERENCIA",
+            font=("Arial", 22, "bold"),
+            bg="white"
+        ).pack(pady=20)
+
+        tk.Label(
+            contenido,
+            text="Cuenta destino:",
+            bg="white"
+        ).pack()
+
+        cuenta_entry = tk.Entry(
+            contenido,
+            font=("Arial", 14)
+        )
+        cuenta_entry.pack()
+
+        tk.Label(
+            contenido,
+            text="Monto:",
+            bg="white"
+        ).pack()
+
+        monto_entry = tk.Entry(
+            contenido,
+            font=("Arial", 14)
+        )
+        monto_entry.pack()
+
+        def confirmar():
+            global saldo
+
+            try:
+                monto = float(monto_entry.get())
+
+                if monto <= saldo:
+                    saldo -= monto
+
+                    messagebox.showinfo(
+                        "Éxito",
+                        f"Transferencia de ${monto:,.2f} realizada."
+                    )
+                else:
+                    messagebox.showerror(
+                        "Error",
+                        "Saldo insuficiente."
+                    )
+
+            except:
+                messagebox.showerror(
+                    "Error",
+                    "Datos inválidos."
+                )
+
+        tk.Button(
+            contenido,
+            text="Transferir",
+            bg="#007bff",
+            fg="white",
+            font=("Arial", 12),
+            command=confirmar
+        ).pack(pady=20)
+
+    def cerrar_sesion():
+        pantalla_login()
+
+    # Menú lateral
+    botones = [
+        ("Inicio", inicio),
+        ("Consultar saldo", consultar_saldo),
+        ("Depósito", deposito),
+        ("Retiro", retiro),
+        ("Transferencia", transferencia),
+        ("Cerrar sesión", cerrar_sesion)
+    ]
+
+    for texto, funcion in botones:
+        tk.Button(
+            menu_frame,
+            text=texto,
+            command=funcion,
+            width=20,
+            height=2,
+            bg="#1f4e79",
+            fg="white",
+            bd=0,
+            font=("Arial", 12)
+        ).pack(pady=5)
+
+    inicio()
+
+
+# Acceso hacia la interfaz de BanCoCO
+def pantalla_login():
+    limpiar_ventana()
+
+    ventana.geometry("500x400")
+    ventana.configure(bg="#dbe9f4")
+
+    frame = tk.Frame(
+        ventana,
+        bg="white",
+        padx=30,
+        pady=30
+    )
+    frame.place(
+        relx=0.5,
+        rely=0.5,
+        anchor="center"
+    )
+
+    tk.Label(
+        frame,
+        text="🏦 BanCOCO",
+        font=("Arial", 22, "bold"),
+        bg="white",
+        fg="#003366"
+    ).pack(pady=10)
+
+    tk.Label(
+        frame,
+        text="Usuario",
+        bg="white"
+    ).pack()
+
+    usuario_entry = tk.Entry(frame, width=30)
+    usuario_entry.pack(pady=5)
+
+    tk.Label(
+        frame,
+        text="Contraseña",
+        bg="white"
+    ).pack()
+
+    password_entry = tk.Entry(
+        frame,
+        show="*",
+        width=30
+    )
+    password_entry.pack(pady=5)
+
+    def login():
+        usuario = usuario_entry.get().lower()
+        password = password_entry.get()
+
+        if usuario in usuarios and usuarios[usuario] == password:
+            messagebox.showinfo(
+                "Bienvenido",
+                f"Acceso correcto, {usuario}"
+            )
+            pantalla_banco(usuario)
+
+        else:
+            messagebox.showerror(
+                "Error",
+                "Usuario o contraseña incorrectos."
+            )
+
+    tk.Button(
+        frame,
+        text="Ingresar",
+        command=login,
+        bg="#003366",
+        fg="white",
+        width=20,
+        font=("Arial", 12)
+    ).pack(pady=20)
+
+
+#ventanilla principal del BanCOCOC
+ventana = tk.Tk()
+ventana.title("BanCOCO")
+ventana.geometry("500x400")
+ventana.resizable(False, False)
+
+pantalla_login()
+
+ventana.mainloop()
 
