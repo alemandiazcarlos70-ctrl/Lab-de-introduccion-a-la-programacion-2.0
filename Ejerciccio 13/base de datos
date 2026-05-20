@@ -1,0 +1,544 @@
+from flask import Flask, request, jsonify, render_template_string, g
+import sqlite3
+import os
+
+APP_NAME = "Inventario con Escaneo de Productos"
+DB_NAME = "inventario_productos.db"
+
+app = Flask(__name__)
+
+
+# -------------------- BASE DE DATOS --------------------
+def get_db():
+    if "db" not in g:
+        g.db = sqlite3.connect(DB_NAME)
+        g.db.row_factory = sqlite3.Row
+    return g.db
+
+
+@app.teardown_appcontext
+def close_db(exception):
+    db = g.pop("db", None)
+    if db is not None:
+        db.close()
+
+
+def init_db():
+    db = sqlite3.connect(DB_NAME)
+    cur = db.cursor()
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS productos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            codigo TEXT NOT NULL UNIQUE,
+            nombre TEXT NOT NULL,
+            categoria TEXT NOT NULL,
+            precio REAL NOT NULL DEFAULT 0,
+            stock INTEGER NOT NULL DEFAULT 0,
+            descripcion TEXT
+        );
+    """)
+
+    cur.execute("SELECT COUNT(*) FROM productos;")
+    total = cur.fetchone()[0]
+
+    if total == 0:
+        demo = [
+            ("7501001234567", "Coca Cola 600 ml", "Bebidas", 18.00, 25, "Refresco de cola."),
+            ("7502001234568", "Pan Bimbo Mediano", "Panadería", 42.50, 14, "Pan de caja clásico."),
+            ("7503001234569", "Leche Entera 1L", "Lácteos", 28.90, 30, "Leche entera pasteurizada."),
+            ("7504001234570", "Sabritas Original", "Botanas", 19.50, 40, "Papas fritas saladas."),
+            ("7505001234571", "Shampoo 700 ml", "Higiene", 64.90, 12, "Shampoo uso diario."),
+        ]
+        cur.executemany("""
+            INSERT INTO productos (codigo, nombre, categoria, precio, stock, descripcion)
+            VALUES (?, ?, ?, ?, ?, ?);
+        """, demo)
+
+    db.commit()
+    db.close()
+
+
+# -------------------- CONSULTAS --------------------
+def fetch_all_products():
+    db = get_db()
+    cur = db.execute("SELECT * FROM productos ORDER BY id DESC;")
+    return cur.fetchall()
+
+
+def fetch_product_by_code(codigo):
+    db = get_db()
+    cur = db.execute("SELECT * FROM productos WHERE codigo = ?;", (codigo,))
+    return cur.fetchone()
+
+
+# -------------------- FRONTEND HTML --------------------
+HTML = """
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Inventario con Escaneo de Productos</title>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: Segoe UI, Arial, sans-serif;
+      background: #f4f4f4;
+      color: #333;
+      min-height: 100vh;
+    }
+    header {
+      background: #1e88e5;
+      color: white;
+      padding: 18px 16px;
+      text-align: center;
+    }
+    main {
+      display: grid;
+      grid-template-columns: 1.6fr 1fr;
+      gap: 14px;
+      padding: 14px;
+      max-width: 1500px;
+      margin: 0 auto;
+      box-sizing: border-box;
+    }
+    .card {
+      background: white;
+      border-radius: 14px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+      padding: 16px;
+      box-sizing: border-box;
+    }
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .badge {
+      background: #e3f2fd;
+      color: #0d47a1;
+      font-weight: 700;
+      padding: 8px 12px;
+      border-radius: 999px;
+    }
+    #reader {
+      width: 100%;
+      min-height: 420px;
+      background: #000;
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    button {
+      cursor: pointer;
+      border: none;
+      border-radius: 8px;
+      padding: 11px 14px;
+      font-size: 14px;
+      color: white;
+      background: #1e88e5;
+    }
+    button.secondary { background: #424242; }
+    button.success { background: #2e7d32; }
+    button.danger { background: #c62828; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+    .result, .box {
+      margin-top: 12px;
+      background: #fafafa;
+      border: 1px solid #e5e5e5;
+      border-radius: 12px;
+      padding: 12px;
+      word-break: break-word;
+    }
+    .box h3 {
+      margin: 0 0 10px 0;
+      font-size: 16px;
+    }
+    input, textarea {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-family: inherit;
+      margin-bottom: 10px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    th, td {
+      border-bottom: 1px solid #eee;
+      padding: 8px;
+      text-align: left;
+    }
+    th { background: #f7f7f7; }
+    @media (max-width: 1100px) {
+      main { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Inventario con Escaneo de Productos</h1>
+    <p>Escanea con la cámara del navegador o registra productos en SQLite.</p>
+  </header>
+
+  <main>
+    <section class="card">
+      <div class="status">
+        <strong>Estado:</strong>
+        <span id="status" class="badge">Esperando cámara...</span>
+      </div>
+
+      <div id="reader"></div>
+
+      <div class="row">
+        <button id="startBtn">Iniciar escaneo</button>
+        <button id="stopBtn" class="secondary" disabled>Detener escaneo</button>
+        <button id="reloadBtn" class="secondary">Recargar productos</button>
+      </div>
+
+      <div class="result">
+        <strong>Resultado:</strong>
+        <pre id="resultText" style="white-space: pre-wrap; margin: 8px 0 0 0;">No se ha escaneado ningún producto aún.</pre>
+      </div>
+
+      <div class="box">
+        <h3>Buscar producto</h3>
+        <input id="searchCode" placeholder="Escribe un código y presiona Buscar">
+        <div class="row">
+          <button id="searchBtn" class="success">Buscar</button>
+        </div>
+      </div>
+    </section>
+
+    <aside class="card">
+      <div class="box">
+        <h3>Registrar producto</h3>
+        <input id="codigo" placeholder="Código">
+        <input id="nombre" placeholder="Nombre">
+        <input id="categoria" placeholder="Categoría">
+        <input id="precio" placeholder="Precio" type="number" step="0.01">
+        <input id="stock" placeholder="Stock" type="number">
+        <textarea id="descripcion" placeholder="Descripción" rows="4"></textarea>
+        <div class="row">
+          <button id="saveBtn" class="success">Guardar</button>
+          <button id="clearBtn" class="secondary">Limpiar</button>
+        </div>
+      </div>
+
+      <div class="box">
+        <h3>Producto detectado</h3>
+        <pre id="productInfo" style="white-space: pre-wrap; margin: 0;">Sin datos.</pre>
+      </div>
+
+      <div class="box">
+        <h3>Productos registrados</h3>
+        <div style="overflow:auto; max-height: 340px;">
+          <table>
+            <thead>
+              <tr>
+                <th>Código</th><th>Nombre</th><th>Stock</th>
+              </tr>
+            </thead>
+            <tbody id="productsTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <script>
+    const resultText = document.getElementById("resultText");
+    const productInfo = document.getElementById("productInfo");
+    const statusEl = document.getElementById("status");
+    const productsTable = document.getElementById("productsTable");
+
+    const startBtn = document.getElementById("startBtn");
+    const stopBtn = document.getElementById("stopBtn");
+    const reloadBtn = document.getElementById("reloadBtn");
+    const searchBtn = document.getElementById("searchBtn");
+    const saveBtn = document.getElementById("saveBtn");
+    const clearBtn = document.getElementById("clearBtn");
+
+    const searchCode = document.getElementById("searchCode");
+    const codigo = document.getElementById("codigo");
+    const nombre = document.getElementById("nombre");
+    const categoria = document.getElementById("categoria");
+    const precio = document.getElementById("precio");
+    const stock = document.getElementById("stock");
+    const descripcion = document.getElementById("descripcion");
+
+    let scanner = null;
+    let isScanning = false;
+
+    function setStatus(text) {
+      statusEl.textContent = text;
+    }
+
+    function setResult(text) {
+      resultText.textContent = text;
+    }
+
+    function setProductInfo(text) {
+      productInfo.textContent = text;
+    }
+
+    function clearForm() {
+      codigo.value = "";
+      nombre.value = "";
+      categoria.value = "";
+      precio.value = "";
+      stock.value = "";
+      descripcion.value = "";
+    }
+
+    async function loadProducts() {
+      const res = await fetch("/api/products");
+      const data = await res.json();
+      productsTable.innerHTML = data.products.map(p => `
+        <tr>
+          <td>${p.codigo}</td>
+          <td>${p.nombre}</td>
+          <td>${p.stock}</td>
+        </tr>
+      `).join("");
+    }
+
+    async function searchProduct(code) {
+      const res = await fetch(`/api/product/${encodeURIComponent(code)}`);
+      const data = await res.json();
+      if (data.found) {
+        const p = data.product;
+        const txt = `Producto encontrado
+----------------------------------------
+ID: ${p.id}
+Código: ${p.codigo}
+Nombre: ${p.nombre}
+Categoría: ${p.categoria}
+Precio: $${Number(p.precio).toFixed(2)}
+Stock: ${p.stock}
+Descripción: ${p.descripcion || ""}`;
+        setResult(txt);
+        setProductInfo(txt);
+        setStatus("Producto encontrado");
+      } else {
+        const txt = `Código detectado, pero no existe en la base de datos.
+
+Código leído:
+${code}`;
+        setResult(txt);
+        setProductInfo(txt);
+        setStatus("Código no registrado");
+      }
+    }
+
+    async function saveProduct() {
+      try {
+        const payload = {
+          codigo: codigo.value.trim(),
+          nombre: nombre.value.trim(),
+          categoria: categoria.value.trim(),
+          precio: precio.value.trim(),
+          stock: stock.value.trim(),
+          descripcion: descripcion.value.trim()
+        };
+
+        const res = await fetch("/api/product", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Error al guardar");
+
+        setProductInfo(`Producto guardado: ${payload.codigo}`);
+        clearForm();
+        loadProducts();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function startScan() {
+      if (isScanning) return;
+
+      try {
+        scanner = new Html5Qrcode("reader");
+        await scanner.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 250, height: 250 } },
+          async (decodedText) => {
+            setResult(decodedText);
+            setStatus("Código detectado");
+            await searchProduct(decodedText.trim());
+          },
+          () => {}
+        );
+
+        isScanning = true;
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+        setStatus("Escaneando...");
+      } catch (e) {
+        setStatus("Error al iniciar cámara");
+        setResult(e.message);
+      }
+    }
+
+    async function stopScan() {
+      if (!isScanning || !scanner) return;
+      try {
+        await scanner.stop();
+        await scanner.clear();
+      } catch (e) {}
+      isScanning = false;
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+      setStatus("Escaneo detenido");
+    }
+
+    startBtn.addEventListener("click", startScan);
+    stopBtn.addEventListener("click", stopScan);
+    reloadBtn.addEventListener("click", loadProducts);
+    searchBtn.addEventListener("click", () => searchProduct(searchCode.value.trim()));
+    saveBtn.addEventListener("click", saveProduct);
+    clearBtn.addEventListener("click", clearForm);
+
+    loadProducts();
+  </script>
+</body>
+</html>
+"""
+
+
+# -------------------- RUTAS --------------------
+@app.route("/")
+def index():
+    return render_template_string(HTML)
+
+
+@app.route("/api/products", methods=["GET"])
+def api_products():
+    rows = fetch_all_products()
+    return jsonify({
+        "products": [
+            {
+                "id": r["id"],
+                "codigo": r["codigo"],
+                "nombre": r["nombre"],
+                "categoria": r["categoria"],
+                "precio": r["precio"],
+                "stock": r["stock"],
+                "descripcion": r["descripcion"]
+            }
+            for r in rows
+        ]
+    })
+
+
+@app.route("/api/product/<codigo>", methods=["GET"])
+def api_product(codigo):
+    row = fetch_product_by_code(codigo)
+    if not row:
+        return jsonify({"found": False})
+    return jsonify({
+        "found": True,
+        "product": {
+            "id": row["id"],
+            "codigo": row["codigo"],
+            "nombre": row["nombre"],
+            "categoria": row["categoria"],
+            "precio": row["precio"],
+            "stock": row["stock"],
+            "descripcion": row["descripcion"]
+        }
+    })
+
+
+@app.route("/api/product", methods=["POST"])
+def api_create_product():
+    data = request.get_json(force=True, silent=True) or {}
+
+    codigo = str(data.get("codigo", "")).strip()
+    nombre = str(data.get("nombre", "")).strip()
+    categoria = str(data.get("categoria", "")).strip()
+    descripcion = str(data.get("descripcion", "")).strip()
+
+    try:
+        precio = float(data.get("precio", 0))
+        stock = int(data.get("stock", 0))
+    except ValueError:
+        return jsonify({"error": "Precio o stock inválidos"}), 400
+
+    if not codigo or not nombre or not categoria:
+        return jsonify({"error": "Código, nombre y categoría son obligatorios"}), 400
+
+    try:
+        db = get_db()
+        db.execute("""
+            INSERT INTO productos (codigo, nombre, categoria, precio, stock, descripcion)
+            VALUES (?, ?, ?, ?, ?, ?);
+        """, (codigo, nombre, categoria, precio, stock, descripcion))
+        db.commit()
+        return jsonify({"ok": True})
+    except sqlite3.IntegrityError:
+        return jsonify({"error": "Ese código ya existe"}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/product/<int:product_id>", methods=["PUT"])
+def api_update_product(product_id):
+    data = request.get_json(force=True, silent=True) or {}
+
+    codigo = str(data.get("codigo", "")).strip()
+    nombre = str(data.get("nombre", "")).strip()
+    categoria = str(data.get("categoria", "")).strip()
+    descripcion = str(data.get("descripcion", "")).strip()
+
+    try:
+        precio = float(data.get("precio", 0))
+        stock = int(data.get("stock", 0))
+    except ValueError:
+        return jsonify({"error": "Precio o stock inválidos"}), 400
+
+    if not codigo or not nombre or not categoria:
+        return jsonify({"error": "Código, nombre y categoría son obligatorios"}), 400
+
+    try:
+        db = get_db()
+        db.execute("""
+            UPDATE productos
+            SET codigo = ?, nombre = ?, categoria = ?, precio = ?, stock = ?, descripcion = ?
+            WHERE id = ?;
+        """, (codigo, nombre, categoria, precio, stock, descripcion, product_id))
+        db.commit()
+        return jsonify({"ok": True})
+    except sqlite3.IntegrityError:
+        return jsonify({"error": "Ese código ya existe"}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/product/<int:product_id>", methods=["DELETE"])
+def api_delete_product(product_id):
+    try:
+        db = get_db()
+        db.execute("DELETE FROM productos WHERE id = ?;", (product_id,))
+        db.commit()
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+if __name__ == "__main__":
+    init_db()
+    # La cámara del navegador funciona con localhost o HTTPS (ngrok sirve aquí).
+    app.run(host="0.0.0.0", port=5000, debug=True)

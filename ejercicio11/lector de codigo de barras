@@ -1,0 +1,327 @@
+import tkinter as tk
+from tkinter import filedialog, messagebox
+import cv2
+from PIL import Image, ImageTk
+import time
+
+try:
+    from pyzbar.pyzbar import decode as zbar_decode
+    PYZBAR_AVAILABLE = True
+except Exception:
+    PYZBAR_AVAILABLE = False
+
+
+class LectorQRBarrasApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Lector QR y Código de Barras")
+        self.root.geometry("1000x760")
+        self.root.minsize(900, 650)
+        self.root.configure(bg="#f4f4f4")
+
+        self.cap = None
+        self.scanning = False
+        self.after_id = None
+        self.last_result = ""
+        self.last_scan_time = 0
+
+        self.qr_detector = cv2.QRCodeDetector()
+
+        # Más velocidad: escaneo cada cierto tiempo, no en cada frame
+        self.scan_interval_ms = 200
+        self.preview_interval_ms = 15
+
+        self._crear_interfaz()
+
+    def _crear_interfaz(self):
+        header = tk.Frame(self.root, bg="#1e88e5", height=90)
+        header.pack(fill="x")
+
+        tk.Label(
+            header,
+            text="Lector QR y Código de Barras",
+            bg="#1e88e5",
+            fg="white",
+            font=("Arial", 20, "bold")
+        ).pack(pady=(14, 0))
+
+        tk.Label(
+            header,
+            text="Escanea con la cámara o carga una imagen.",
+            bg="#1e88e5",
+            fg="white",
+            font=("Arial", 11)
+        ).pack()
+
+        main = tk.Frame(self.root, bg="#f4f4f4", padx=16, pady=16)
+        main.pack(fill="both", expand=True)
+
+        card = tk.Frame(main, bg="white", bd=0, relief="flat")
+        card.pack(fill="both", expand=True)
+
+        info = tk.Frame(card, bg="white", padx=20, pady=16)
+        info.pack(fill="x")
+
+        tk.Label(info, text="Estado:", bg="white", font=("Arial", 11, "bold")).pack(side="left")
+
+        self.status_var = tk.StringVar(value="Esperando cámara...")
+        self.status_label = tk.Label(
+            info,
+            textvariable=self.status_var,
+            bg="#e3f2fd",
+            fg="#0d47a1",
+            font=("Arial", 10, "bold"),
+            padx=12,
+            pady=6
+        )
+        self.status_label.pack(side="left", padx=12)
+
+        self.video_label = tk.Label(card, bg="black")
+        self.video_label.pack(fill="both", expand=True, padx=20, pady=(0, 16))
+
+        controls = tk.Frame(card, bg="white", padx=20, pady=8)
+        controls.pack(fill="x")
+
+        self.btn_start = tk.Button(
+            controls, text="Iniciar Escaneo", command=self.iniciar_escaneo,
+            bg="#1e88e5", fg="white", font=("Arial", 11),
+            padx=14, pady=8, relief="flat", cursor="hand2"
+        )
+        self.btn_start.pack(side="left", padx=(0, 10))
+
+        self.btn_stop = tk.Button(
+            controls, text="Detener Escaneo", command=self.detener_escaneo,
+            bg="#424242", fg="white", font=("Arial", 11),
+            padx=14, pady=8, relief="flat", cursor="hand2", state="disabled"
+        )
+        self.btn_stop.pack(side="left", padx=(0, 10))
+
+        self.btn_upload = tk.Button(
+            controls, text="Cargar Imagen", command=self.cargar_imagen,
+            bg="#424242", fg="white", font=("Arial", 11),
+            padx=14, pady=8, relief="flat", cursor="hand2"
+        )
+        self.btn_upload.pack(side="left")
+
+        result_box = tk.Frame(card, bg="#fafafa", bd=1, relief="solid")
+        result_box.pack(fill="x", padx=20, pady=(8, 20))
+
+        tk.Label(
+            result_box,
+            text="Resultado:",
+            bg="#fafafa",
+            font=("Arial", 11, "bold")
+        ).pack(anchor="w", padx=12, pady=(10, 0))
+
+        self.result_text = tk.Text(
+            result_box,
+            height=6,
+            wrap="word",
+            font=("Consolas", 10),
+            bd=0,
+            bg="#fafafa"
+        )
+        self.result_text.pack(fill="x", padx=12, pady=(6, 12))
+        self._mostrar_resultado("No se ha escaneado nada aún.")
+
+        footer = tk.Label(
+            self.root,
+            text="Aplicación de escritorio en Python.",
+            bg="#f4f4f4",
+            fg="#666",
+            font=("Arial", 10)
+        )
+        footer.pack(pady=(0, 10))
+
+        self.root.protocol("WM_DELETE_WINDOW", self.cerrar)
+
+    def _actualizar_estado(self, texto):
+        self.status_var.set(texto)
+
+    def _mostrar_resultado(self, texto):
+        self.result_text.config(state="normal")
+        self.result_text.delete("1.0", tk.END)
+        self.result_text.insert("1.0", texto)
+        self.result_text.config(state="disabled")
+
+    def _abrir_camara(self):
+        intentos = [
+            (0, cv2.CAP_DSHOW),
+            (0, cv2.CAP_MSMF),
+            (1, cv2.CAP_DSHOW),
+            (1, cv2.CAP_MSMF),
+            (2, cv2.CAP_DSHOW),
+            (2, cv2.CAP_MSMF),
+        ]
+
+        for indice, backend in intentos:
+            cap = cv2.VideoCapture(indice, backend)
+            if cap.isOpened():
+                cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+                return cap
+            cap.release()
+
+        for indice in [0, 1, 2]:
+            cap = cv2.VideoCapture(indice)
+            if cap.isOpened():
+                cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+                return cap
+            cap.release()
+
+        return None
+
+    def iniciar_escaneo(self):
+        if self.scanning:
+            return
+
+        self.cap = self._abrir_camara()
+
+        if self.cap is None:
+            messagebox.showerror(
+                "Error",
+                "No se pudo abrir la cámara.\n\n"
+                "Revisa permisos, si otra app la usa o si tu webcam está activa."
+            )
+            self._actualizar_estado("Error al iniciar cámara")
+            return
+
+        self.scanning = True
+        self.last_scan_time = 0
+        self.btn_start.config(state="disabled")
+        self.btn_stop.config(state="normal")
+        self._actualizar_estado("Escaneando...")
+        self._actualizar_video()
+
+    def detener_escaneo(self):
+        self.scanning = False
+        self.btn_start.config(state="normal")
+        self.btn_stop.config(state="disabled")
+        self._actualizar_estado("Escaneo detenido")
+
+        if self.after_id is not None:
+            self.root.after_cancel(self.after_id)
+            self.after_id = None
+
+        if self.cap is not None:
+            self.cap.release()
+            self.cap = None
+
+    def _procesar_qr(self, frame_bgr):
+        # OpenCV QR: rápido y suficiente para la mayoría de QR
+        data, points, _ = self.qr_detector.detectAndDecode(frame_bgr)
+        if data:
+            return [("QR", data)]
+        return []
+
+    def _procesar_barcode(self, frame_bgr):
+        if not PYZBAR_AVAILABLE:
+            return []
+
+        try:
+            gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
+            codes = zbar_decode(gray)
+            resultados = []
+            for code in codes:
+                tipo = code.type
+                valor = code.data.decode("utf-8", errors="replace")
+                resultados.append((tipo, valor))
+            return resultados
+        except Exception:
+            return []
+
+    def _limpiar_duplicados(self, items):
+        vistos = set()
+        salida = []
+        for tipo, valor in items:
+            clave = (tipo, valor)
+            if clave not in vistos:
+                vistos.add(clave)
+                salida.append((tipo, valor))
+        return salida
+
+    def _mostrar_frame(self, frame_bgr):
+        rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
+        imagen = Image.fromarray(rgb)
+
+        ancho = self.video_label.winfo_width()
+        alto = self.video_label.winfo_height()
+
+        if ancho > 1 and alto > 1:
+            imagen = imagen.resize((ancho, alto))
+
+        foto = ImageTk.PhotoImage(imagen)
+        self.video_label.configure(image=foto)
+        self.video_label.image = foto
+
+    def _actualizar_video(self):
+        if not self.scanning or self.cap is None:
+            return
+
+        ret, frame = self.cap.read()
+        if not ret:
+            self._actualizar_estado("No se pudo leer la cámara")
+            self.after_id = self.root.after(self.preview_interval_ms, self._actualizar_video)
+            return
+
+        self._mostrar_frame(frame)
+
+        ahora = time.time() * 1000
+        if ahora - self.last_scan_time >= self.scan_interval_ms:
+            self.last_scan_time = ahora
+
+            resultados = []
+            resultados.extend(self._procesar_qr(frame))
+            resultados.extend(self._procesar_barcode(frame))
+            resultados = self._limpiar_duplicados(resultados)
+
+            if resultados:
+                texto = "\n".join([f"{tipo}: {valor}" for tipo, valor in resultados])
+                if texto != self.last_result:
+                    self.last_result = texto
+                    self._mostrar_resultado(texto)
+                    self._actualizar_estado("Código detectado")
+
+        self.after_id = self.root.after(self.preview_interval_ms, self._actualizar_video)
+
+    def cargar_imagen(self):
+        ruta = filedialog.askopenfilename(
+            title="Seleccionar imagen",
+            filetypes=[
+                ("Imágenes", "*.png *.jpg *.jpeg *.bmp *.webp"),
+                ("Todos los archivos", "*.*")
+            ]
+        )
+        if not ruta:
+            return
+
+        imagen = cv2.imread(ruta)
+        if imagen is None:
+            messagebox.showerror("Error", "No se pudo abrir la imagen.")
+            return
+
+        resultados = []
+        resultados.extend(self._procesar_qr(imagen))
+        resultados.extend(self._procesar_barcode(imagen))
+        resultados = self._limpiar_duplicados(resultados)
+
+        if resultados:
+            texto = "\n".join([f"{tipo}: {valor}" for tipo, valor in resultados])
+            self._mostrar_resultado(texto)
+            self._actualizar_estado("Imagen leída correctamente")
+        else:
+            self._mostrar_resultado("No se detectó ningún QR o código de barras en la imagen.")
+            self._actualizar_estado("No se pudo leer la imagen")
+
+        self._mostrar_frame(imagen)
+
+    def cerrar(self):
+        self.detener_escaneo()
+        self.root.destroy()
+
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = LectorQRBarrasApp(root)
+    root.mainloop()

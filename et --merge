@@ -1,0 +1,150 @@
+[1mdiff --git "a/Ejercicio4/Men\303\272" "b/Ejercicio 4/Men\303\272"[m
+[1msimilarity index 100%[m
+[1mrename from "Ejercicio4/Men\303\272"[m
+[1mrename to "Ejercicio 4/Men\303\272"[m
+[1mdiff --git a/Ejercicio12/escaner b/Ejercicio12/escaner[m
+[1mnew file mode 100644[m
+[1mindex 0000000..4fd9bbc[m
+[1m--- /dev/null[m
+[1m+++ b/Ejercicio12/escaner[m
+[36m@@ -0,0 +1,151 @@[m
+[32m+[m[32mfrom flask import Flask, render_template_string, request, jsonify[m
+[32m+[m[32mimport socket[m
+[32m+[m[32mimport threading[m
+[32m+[m[32mimport webbrowser[m
+[32m+[m[32mimport time[m
+[32m+[m
+[32m+[m[32mapp = Flask(__name__)[m
+[32m+[m
+[32m+[m[32m# --- BASE DE DATOS DE PRODUCTOS ---[m
+[32m+[m[32mPRODUCTOS = {[m
+[32m+[m[32m    "7501031311309": {"nombre": "Coca Cola 600 ml", "precio": "$18 MXN"},[m
+[32m+[m[32m    "7501055300012": {"nombre": "Sabritas Original", "precio": "$20 MXN"},[m
+[32m+[m[32m    "7501006551044": {"nombre": "Leche Lala 1 L", "precio": "$25 MXN"},[m
+[32m+[m[32m    "123456789": {"nombre": "Producto de Prueba", "precio": "$99 MXN"},[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32mdef obtener_ip():[m
+[32m+[m[32m    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)[m
+[32m+[m[32m    try:[m
+[32m+[m[32m        s.connect(("8.8.8.8", 80))[m
+[32m+[m[32m        ip = s.getsockname()[0][m
+[32m+[m[32m    except Exception:[m
+[32m+[m[32m        ip = "127.0.0.1"[m
+[32m+[m[32m    finally:[m
+[32m+[m[32m        s.close()[m
+[32m+[m[32m    return ip[m
+[32m+[m
+[32m+[m[32mIP_LOCAL = obtener_ip()[m
+[32m+[m
+[32m+[m[32m# --- INTERFAZ ÚNICA PARA CELULAR Y PC ---[m
+[32m+[m[32mHTML_FINAL = """[m
+[32m+[m[32m<!DOCTYPE html>[m
+[32m+[m[32m<html lang="es">[m
+[32m+[m[32m<head>[m
+[32m+[m[32m    <meta charset="UTF-8">[m
+[32m+[m[32m    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">[m
+[32m+[m[32m    <title>Scanner Pro Walmart</title>[m
+[32m+[m[32m    <script src="https://unpkg.com/html5-qrcode"></script>[m
+[32m+[m[32m    <style>[m
+[32m+[m[32m        body { font-family: sans-serif; margin: 0; background: #0071ce; color: white; text-align: center; display: flex; flex-direction: column; height: 100vh; }[m
+[32m+[m[32m        header { padding: 15px; font-weight: bold; font-size: 1.2rem; background: #004f91; }[m
+[32m+[m[32m        #reader { width: 100%; flex-grow: 1; background: black; }[m
+[32m+[m[32m        .panel { background: white; color: #333; padding: 20px; border-radius: 25px 25px 0 0; box-shadow: 0 -10px 20px rgba(0,0,0,0.3); }[m
+[32m+[m[32m        .price { font-size: 2.8rem; color: #0071ce; font-weight: bold; margin: 5px 0; }[m
+[32m+[m[32m        .name { font-size: 1.2rem; font-weight: bold; color: #555; min-height: 1.5em; }[m
+[32m+[m[32m        .btn { background: #ffc220; border: none; padding: 15px; width: 100%; border-radius: 12px; font-weight: bold; font-size: 1.1rem; cursor: pointer; color: #333; }[m
+[32m+[m[32m        .overlay-setup { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,113,206,0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; }[m
+[32m+[m[32m        .btn-start { background: #28a745; color: white; padding: 25px 40px; font-size: 1.5rem; border-radius: 50px; border: none; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }[m
+[32m+[m[32m    </style>[m
+[32m+[m[32m</head>[m
+[32m+[m[32m<body>[m
+[32m+[m[32m    <div id="overlay" class="overlay-setup">[m
+[32m+[m[32m        <button class="btn-start" onclick="iniciarCamara()">📷 INICIAR ESCÁNER</button>[m
+[32m+[m[32m        <p style="margin-top: 20px;">Toca para activar la cámara</p>[m
+[32m+[m[32m    </div>[m
+[32m+[m
+[32m+[m[32m    <header>CONSULTADOR DE PRECIOS</header>[m
+[32m+[m
+[32m+[m[32m    <div id="reader"></div>[m
+[32m+[m
+[32m+[m[32m    <div class="panel">[m
+[32m+[m[32m        <div id="prod-nombre" class="name">Listo para escanear</div>[m
+[32m+[m[32m        <div id="prod-precio" class="price">---</div>[m
+[32m+[m[32m        <button class="btn" onclick="resetEscaneo()">ESCANEAR OTRO</button>[m
+[32m+[m[32m        <div id="status" style="font-size: 0.8rem; color: #999; margin-top: 10px;">Estado: Esperando interacción</div>[m
+[32m+[m[32m    </div>[m
+[32m+[m
+[32m+[m[32m    <script>[m
+[32m+[m[32m        const html5QrCode = new Html5Qrcode("reader");[m
+[32m+[m[32m        let escaneando = true;[m
+[32m+[m
+[32m+[m[32m        function iniciarCamara() {[m
+[32m+[m[32m            document.getElementById('overlay').style.display = 'none';[m
+[32m+[m[32m            document.getElementById('status').innerText = "Estado: Cámara activa";[m
+[32m+[m[41m            [m
+[32m+[m[32m            const config = {[m[41m [m
+[32m+[m[32m                fps: 20,[m[41m [m
+[32m+[m[32m                qrbox: { width: 280, height: 160 },[m
+[32m+[m[32m                aspectRatio: 1.0[m[41m [m
+[32m+[m[32m            };[m
+[32m+[m
+[32m+[m[32m            html5QrCode.start([m
+[32m+[m[32m                { facingMode: "environment" },[m[41m [m
+[32m+[m[32m                config,[m[41m [m
+[32m+[m[32m                (decodedText) => {[m
+[32m+[m[32m                    if(escaneando) {[m
+[32m+[m[32m                        escaneando = false;[m[41m [m
+[32m+[m[32m                        if(navigator.vibrate) navigator.vibrate(100);[m
+[32m+[m[32m                        enviarAlServidor(decodedText);[m
+[32m+[m[32m                    }[m
+[32m+[m[32m                }[m
+[32m+[m[32m            ).catch(err => {[m
+[32m+[m[32m                alert("Error: Asegúrate de dar permisos de cámara o configurar Chrome Flags si no usas HTTPS.");[m
+[32m+[m[32m                document.getElementById('status').innerText = "Error: " + err;[m
+[32m+[m[32m            });[m
+[32m+[m[32m        }[m
+[32m+[m
+[32m+[m[32m        function enviarAlServidor(codigo) {[m
+[32m+[m[32m            document.getElementById('status').innerText = "Buscando: " + codigo;[m
+[32m+[m[32m            fetch('/scan', {[m
+[32m+[m[32m                method: 'POST',[m
+[32m+[m[32m                headers: {'Content-Type': 'application/json'},[m
+[32m+[m[32m                body: JSON.stringify({ codigo: codigo })[m
+[32m+[m[32m            })[m
+[32m+[m[32m            .then(res => res.json())[m
+[32m+[m[32m            .then(data => {[m
+[32m+[m[32m                document.getElementById('prod-nombre').innerText = data.nombre;[m
+[32m+[m[32m                document.getElementById('prod-precio').innerText = data.precio;[m
+[32m+[m[32m                document.getElementById('status').innerText = "Código leído: " + codigo;[m
+[32m+[m[32m            });[m
+[32m+[m[32m        }[m
+[32m+[m
+[32m+[m[32m        function resetEscaneo() {[m
+[32m+[m[32m            escaneando = true;[m
+[32m+[m[32m            document.getElementById('prod-nombre').innerText = "Buscando...";[m
+[32m+[m[32m            document.getElementById('prod-precio').innerText = "---";[m
+[32m+[m[32m        }[m
+[32m+[m[32m    </script>[m
+[32m+[m[32m</body>[m
+[32m+[m[32m</html>[m
+[32m+[m[32m"""[m
+[32m+[m
+[32m+[m[32m@app.route("/")[m
+[32m+[m[32mdef index():[m
+[32m+[m[32m    return render_template_string(HTML_FINAL)[m
+[32m+[m
+[32m+[m[32m@app.route("/scan", methods=["POST"])[m
+[32m+[m[32mdef scan():[m
+[32m+[m[32m    data = request.get_json() or {}[m
+[32m+[m[32m    codigo = str(data.get("codigo", "")).strip()[m
+[32m+[m[32m    producto = PRODUCTOS.get(codigo, {"nombre": "No registrado", "precio": "N/A"})[m
+[32m+[m[32m    return jsonify({[m
+[32m+[m[32m        "codigo": codigo,[m[41m [m
+[32m+[m[32m        "nombre": producto["nombre"],[m[41m [m
+[32m+[m[32m        "precio": producto["precio"][m
+[32m+[m[32m    })[m
+[32m+[m
+[32m+[m[32mdef abrir_navegador():[m
+[32m+[m[32m    time.sleep(1.5)[m
+[32m+[m[32m    webbrowser.open(f"http://127

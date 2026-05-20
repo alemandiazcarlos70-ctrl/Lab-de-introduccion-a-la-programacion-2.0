@@ -1,0 +1,151 @@
+from flask import Flask, render_template_string, request, jsonify
+import socket
+import threading
+import webbrowser
+import time
+
+app = Flask(__name__)
+
+# --- BASE DE DATOS DE PRODUCTOS ---
+PRODUCTOS = {
+    "7501031311309": {"nombre": "Coca Cola 600 ml", "precio": "$18 MXN"},
+    "7501055300012": {"nombre": "Sabritas Original", "precio": "$20 MXN"},
+    "7501006551044": {"nombre": "Leche Lala 1 L", "precio": "$25 MXN"},
+    "123456789": {"nombre": "Producto de Prueba", "precio": "$99 MXN"},
+}
+
+def obtener_ip():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+    except Exception:
+        ip = "127.0.0.1"
+    finally:
+        s.close()
+    return ip
+
+IP_LOCAL = obtener_ip()
+
+# --- INTERFAZ ÚNICA PARA CELULAR Y PC ---
+HTML_FINAL = """
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Scanner Pro Walmart</title>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+        body { font-family: sans-serif; margin: 0; background: #0071ce; color: white; text-align: center; display: flex; flex-direction: column; height: 100vh; }
+        header { padding: 15px; font-weight: bold; font-size: 1.2rem; background: #004f91; }
+        #reader { width: 100%; flex-grow: 1; background: black; }
+        .panel { background: white; color: #333; padding: 20px; border-radius: 25px 25px 0 0; box-shadow: 0 -10px 20px rgba(0,0,0,0.3); }
+        .price { font-size: 2.8rem; color: #0071ce; font-weight: bold; margin: 5px 0; }
+        .name { font-size: 1.2rem; font-weight: bold; color: #555; min-height: 1.5em; }
+        .btn { background: #ffc220; border: none; padding: 15px; width: 100%; border-radius: 12px; font-weight: bold; font-size: 1.1rem; cursor: pointer; color: #333; }
+        .overlay-setup { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,113,206,0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; }
+        .btn-start { background: #28a745; color: white; padding: 25px 40px; font-size: 1.5rem; border-radius: 50px; border: none; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+    </style>
+</head>
+<body>
+    <div id="overlay" class="overlay-setup">
+        <button class="btn-start" onclick="iniciarCamara()">📷 INICIAR ESCÁNER</button>
+        <p style="margin-top: 20px;">Toca para activar la cámara</p>
+    </div>
+
+    <header>CONSULTADOR DE PRECIOS</header>
+
+    <div id="reader"></div>
+
+    <div class="panel">
+        <div id="prod-nombre" class="name">Listo para escanear</div>
+        <div id="prod-precio" class="price">---</div>
+        <button class="btn" onclick="resetEscaneo()">ESCANEAR OTRO</button>
+        <div id="status" style="font-size: 0.8rem; color: #999; margin-top: 10px;">Estado: Esperando interacción</div>
+    </div>
+
+    <script>
+        const html5QrCode = new Html5Qrcode("reader");
+        let escaneando = true;
+
+        function iniciarCamara() {
+            document.getElementById('overlay').style.display = 'none';
+            document.getElementById('status').innerText = "Estado: Cámara activa";
+            
+            const config = { 
+                fps: 20, 
+                qrbox: { width: 280, height: 160 },
+                aspectRatio: 1.0 
+            };
+
+            html5QrCode.start(
+                { facingMode: "environment" }, 
+                config, 
+                (decodedText) => {
+                    if(escaneando) {
+                        escaneando = false; 
+                        if(navigator.vibrate) navigator.vibrate(100);
+                        enviarAlServidor(decodedText);
+                    }
+                }
+            ).catch(err => {
+                alert("Error: Asegúrate de dar permisos de cámara o configurar Chrome Flags si no usas HTTPS.");
+                document.getElementById('status').innerText = "Error: " + err;
+            });
+        }
+
+        function enviarAlServidor(codigo) {
+            document.getElementById('status').innerText = "Buscando: " + codigo;
+            fetch('/scan', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ codigo: codigo })
+            })
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('prod-nombre').innerText = data.nombre;
+                document.getElementById('prod-precio').innerText = data.precio;
+                document.getElementById('status').innerText = "Código leído: " + codigo;
+            });
+        }
+
+        function resetEscaneo() {
+            escaneando = true;
+            document.getElementById('prod-nombre').innerText = "Buscando...";
+            document.getElementById('prod-precio').innerText = "---";
+        }
+    </script>
+</body>
+</html>
+"""
+
+@app.route("/")
+def index():
+    return render_template_string(HTML_FINAL)
+
+@app.route("/scan", methods=["POST"])
+def scan():
+    data = request.get_json() or {}
+    codigo = str(data.get("codigo", "")).strip()
+    producto = PRODUCTOS.get(codigo, {"nombre": "No registrado", "precio": "N/A"})
+    return jsonify({
+        "codigo": codigo, 
+        "nombre": producto["nombre"], 
+        "precio": producto["precio"]
+    })
+
+def abrir_navegador():
+    time.sleep(1.5)
+    webbrowser.open(f"http://127.0.0.1:5000")
+
+# --- CORRECCIÓN DE LA LÍNEA 137 ---
+if __name__ == "__main__":
+    print("\n" + "="*40)
+    print(f"🚀 SERVIDOR ACTIVO")
+    print(f"💻 PC: http://127.0.0.1:5000")
+    print(f"📱 CELULAR: http://{IP_LOCAL}:5000")
+    print("="*40 + "\n")
+    
+    threading.Thread(target=abrir_navegador, daemon=True).start()
+    app.run(host="0.0.0.0", port=5000, debug=False)
